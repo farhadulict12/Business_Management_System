@@ -95,38 +95,9 @@ CREATE TABLE IF NOT EXISTS `products` (
     CONSTRAINT `fk_products_users` FOREIGN KEY (`user_id`) REFERENCES `users` (`id`) ON DELETE SET NULL ON UPDATE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 ```
-
 -----
 
-### **5. `sales_transactions` Table**
-
-This table records every single sale transaction made, linking it to a customer and a product.
-
-```sql
-CREATE TABLE IF NOT EXISTS `sales_transactions` (
-    `id` INT(11) NOT NULL AUTO_INCREMENT,
-    `customer_id` INT(11) UNSIGNED NOT NULL,
-    `product_id` INT(11) UNSIGNED NOT NULL,
-    `sale_quantity` INT(11) NOT NULL,
-    `sale_price` DECIMAL(10,2) NOT NULL,
-    `total_price` DECIMAL(10,2) NOT NULL,
-    `paid_amount` DECIMAL(10,2) NOT NULL DEFAULT '0.00',
-    `transaction_date` TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP(),
-    `user_id` INT(11) UNSIGNED NOT NULL,
-    `sale_date` DATE NOT NULL DEFAULT CURDATE(),
-    PRIMARY KEY (`id`),
-    KEY `customer_id` (`customer_id`),
-    KEY `product_id` (`product_id`),
-    KEY `user_id` (`user_id`),
-    CONSTRAINT `fk_sales_transactions_customers` FOREIGN KEY (`customer_id`) REFERENCES `customers` (`id`) ON DELETE CASCADE ON UPDATE CASCADE,
-    CONSTRAINT `fk_sales_transactions_products` FOREIGN KEY (`product_id`) REFERENCES `products` (`id`) ON DELETE CASCADE ON UPDATE CASCADE,
-    CONSTRAINT `fk_sales_transactions_users` FOREIGN KEY (`user_id`) REFERENCES `users` (`id`) ON DELETE CASCADE ON UPDATE CASCADE
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
-```
-
------
-
-### **6. `supplier_transactions` Table**
+### **5. `supplier_transactions` Table**
 
 This table tracks all purchases from suppliers, including quantity, cost, and payment details.
 
@@ -159,7 +130,7 @@ CREATE TABLE IF NOT EXISTS `supplier_transactions` (
 
 -----
 
-### **7. `customer_transactions` Table**
+### **6. `customer_transactions` Table**
 
 This table is a financial ledger for all money received from customers (payments and sales).
 
@@ -182,7 +153,7 @@ CREATE TABLE IF NOT EXISTS `customer_transactions` (
 
 -----
 
-### **8. `supplier_payments` Table**
+### **7. `supplier_payments` Table**
 
 This table is specifically for tracking payments you have made to suppliers.
 
