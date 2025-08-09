@@ -10,57 +10,197 @@ This is a web-based Business Management System (BMS) designed to help small busi
 
 The core of the application is built on a robust MySQL database. The following SQL script, `bms_db.sql`, creates all the necessary tables and defines their relationships. The database is structured to ensure data integrity and efficient querying.
 
-### Key Tables & Relationships
+Here are the SQL codes for all the tables in your database, along with a description of what each table and its columns do. This is a great way to document your database for a project.
 
-The database consists of several interconnected tables:
+-----
 
-#### `users`
-* **Purpose:** Stores user authentication details for a multi-tenant system. Each user's data is isolated and secure.
-* **Columns:** `id`, `mobile_number`, `password`, `email`, `created_at`, `2fa_secret`.
+### **1. `users` Table**
 
-#### `suppliers`
-* **Purpose:** Manages a list of all suppliers.
-* **Relationships:**
-    * **`user_id`**: A foreign key linking to the `users` table, ensuring each supplier is associated with a specific business owner.
+This table stores information for each business owner (user) who uses the system. All other data is linked to a specific user to ensure data is private.
 
-#### `customers`
-* **Purpose:** Manages a list of all customers, including their outstanding balances.
-* **Relationships:**
-    * **`user_id`**: A foreign key linking to the `users` table.
+```sql
+CREATE TABLE IF NOT EXISTS `users` (
+    `id` INT(11) UNSIGNED NOT NULL AUTO_INCREMENT,
+    `mobile_number` VARCHAR(15) NOT NULL,
+    `password` VARCHAR(255) NOT NULL,
+    `email` VARCHAR(255) NULL,
+    `created_at` TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP(),
+    `2fa_secret` VARCHAR(255) NULL,
+    PRIMARY KEY (`id`),
+    UNIQUE KEY `mobile_number` (`mobile_number`),
+    UNIQUE KEY `email` (`email`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+```
 
-#### `products`
-* **Purpose:** Manages the product inventory, including stock quantity, costs, and selling prices.
-* **Relationships:**
-    * **`user_id`**: Links the product to a specific user.
-    * **`supplier_id`**: Identifies which supplier a product was purchased from.
+-----
 
-#### `sales_transactions`
-* **Purpose:** Logs every product sale, recording details such as quantity sold, price, and payment status.
-* **Relationships:**
-    * **`customer_id`**: Links the transaction to a specific customer.
-    * **`product_id`**: Identifies the product sold.
-    * **`user_id`**: Links the transaction to a specific user.
+### **2. `suppliers` Table**
 
-#### `customer_transactions`
-* **Purpose:** A detailed ledger for all financial activities with customers (e.g., sales and payments).
-* **Relationships:**
-    * **`customer_id`**: Links the transaction to a specific customer.
-    * **`user_id`**: Links the transaction to a specific user.
+This table keeps a record of all the suppliers your business works with.
 
-#### `supplier_transactions`
-* **Purpose:** A detailed ledger for all financial activities with suppliers (e.g., purchases and payments).
-* **Relationships:**
-    * **`supplier_id`**: Links the transaction to a specific supplier.
-    * **`product_id`**: Identifies the product purchased (can be `NULL` for payments).
-    * **`user_id`**: Links the transaction to a specific user.
+```sql
+CREATE TABLE IF NOT EXISTS `suppliers` (
+    `id` INT(11) UNSIGNED NOT NULL AUTO_INCREMENT,
+    `supplier_name` VARCHAR(255) NOT NULL,
+    `mobile_number` VARCHAR(20) NULL,
+    `user_id` INT(11) UNSIGNED NOT NULL,
+    `created_at` TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP(),
+    PRIMARY KEY (`id`),
+    KEY `fk_suppliers_users` (`user_id`),
+    CONSTRAINT `fk_suppliers_users` FOREIGN KEY (`user_id`) REFERENCES `users` (`id`) ON DELETE CASCADE ON UPDATE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+```
 
-#### `supplier_payments`
-* **Purpose:** A separate table to specifically track payments made to suppliers.
-* **Relationships:**
-    * **`supplier_id`**: Links the payment to a specific supplier.
-    * **`user_id`**: Links the payment to a specific user.
+-----
 
----
+### **3. `customers` Table**
+
+This table stores all your customer information, including any outstanding balance they owe.
+
+```sql
+CREATE TABLE IF NOT EXISTS `customers` (
+    `id` INT(11) UNSIGNED NOT NULL AUTO_INCREMENT,
+    `user_id` INT(11) UNSIGNED NULL,
+    `customer_name` VARCHAR(255) NOT NULL,
+    `mobile_number` VARCHAR(15) NOT NULL,
+    `due_amount` DECIMAL(10,2) NULL DEFAULT '0.00',
+    `created_at` TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP(),
+    PRIMARY KEY (`id`),
+    KEY `user_id` (`user_id`),
+    CONSTRAINT `fk_customers_users` FOREIGN KEY (`user_id`) REFERENCES `users` (`id`) ON DELETE SET NULL ON UPDATE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+```
+
+-----
+
+### **4. `products` Table**
+
+This table is your inventory. It tracks product details, stock quantity, cost, and selling price.
+
+```sql
+CREATE TABLE IF NOT EXISTS `products` (
+    `id` INT(11) UNSIGNED NOT NULL AUTO_INCREMENT,
+    `user_id` INT(11) UNSIGNED NULL,
+    `supplier_id` INT(11) UNSIGNED NOT NULL,
+    `product_name` VARCHAR(255) NOT NULL,
+    `quantity` INT(11) NOT NULL,
+    `cost_rate` DECIMAL(10,2) NOT NULL,
+    `final_cost_per_unit` DECIMAL(10,2) NOT NULL DEFAULT '0.00',
+    `mrp` DECIMAL(10,2) NOT NULL,
+    `created_at` TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP(),
+    PRIMARY KEY (`id`),
+    KEY `user_id` (`user_id`),
+    KEY `supplier_id` (`supplier_id`),
+    CONSTRAINT `fk_products_suppliers` FOREIGN KEY (`supplier_id`) REFERENCES `suppliers` (`id`) ON DELETE CASCADE ON UPDATE CASCADE,
+    CONSTRAINT `fk_products_users` FOREIGN KEY (`user_id`) REFERENCES `users` (`id`) ON DELETE SET NULL ON UPDATE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+```
+
+-----
+
+### **5. `sales_transactions` Table**
+
+This table records every single sale transaction made, linking it to a customer and a product.
+
+```sql
+CREATE TABLE IF NOT EXISTS `sales_transactions` (
+    `id` INT(11) NOT NULL AUTO_INCREMENT,
+    `customer_id` INT(11) UNSIGNED NOT NULL,
+    `product_id` INT(11) UNSIGNED NOT NULL,
+    `sale_quantity` INT(11) NOT NULL,
+    `sale_price` DECIMAL(10,2) NOT NULL,
+    `total_price` DECIMAL(10,2) NOT NULL,
+    `paid_amount` DECIMAL(10,2) NOT NULL DEFAULT '0.00',
+    `transaction_date` TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP(),
+    `user_id` INT(11) UNSIGNED NOT NULL,
+    `sale_date` DATE NOT NULL DEFAULT CURDATE(),
+    PRIMARY KEY (`id`),
+    KEY `customer_id` (`customer_id`),
+    KEY `product_id` (`product_id`),
+    KEY `user_id` (`user_id`),
+    CONSTRAINT `fk_sales_transactions_customers` FOREIGN KEY (`customer_id`) REFERENCES `customers` (`id`) ON DELETE CASCADE ON UPDATE CASCADE,
+    CONSTRAINT `fk_sales_transactions_products` FOREIGN KEY (`product_id`) REFERENCES `products` (`id`) ON DELETE CASCADE ON UPDATE CASCADE,
+    CONSTRAINT `fk_sales_transactions_users` FOREIGN KEY (`user_id`) REFERENCES `users` (`id`) ON DELETE CASCADE ON UPDATE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+```
+
+-----
+
+### **6. `supplier_transactions` Table**
+
+This table tracks all purchases from suppliers, including quantity, cost, and payment details.
+
+```sql
+CREATE TABLE IF NOT EXISTS `supplier_transactions` (
+    `id` INT(11) NOT NULL AUTO_INCREMENT,
+    `supplier_id` INT(11) UNSIGNED NOT NULL,
+    `product_id` INT(11) NULL,
+    `purchase_quantity` DECIMAL(10,2) NULL,
+    `cost_per_unit` DECIMAL(10,2) NULL,
+    `total_cost` DECIMAL(10,2) NULL,
+    `paid_amount` DECIMAL(10,2) NULL,
+    `purchase_date` DATE NULL,
+    `notes` TEXT NULL,
+    `transaction_type` VARCHAR(50) NOT NULL,
+    `amount` DECIMAL(10,2) NOT NULL,
+    `description` TEXT NULL,
+    `created_at` TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP(),
+    `user_id` INT(11) UNSIGNED NOT NULL,
+    `transaction_date` DATE NOT NULL,
+    PRIMARY KEY (`id`),
+    KEY `supplier_id` (`supplier_id`),
+    KEY `product_id` (`product_id`),
+    KEY `user_id` (`user_id`),
+    CONSTRAINT `fk_supplier_transactions_suppliers` FOREIGN KEY (`supplier_id`) REFERENCES `suppliers` (`id`) ON DELETE CASCADE ON UPDATE CASCADE,
+    CONSTRAINT `fk_supplier_transactions_products` FOREIGN KEY (`product_id`) REFERENCES `products` (`id`) ON DELETE SET NULL ON UPDATE CASCADE,
+    CONSTRAINT `fk_supplier_transactions_users` FOREIGN KEY (`user_id`) REFERENCES `users` (`id`) ON DELETE CASCADE ON UPDATE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+```
+
+-----
+
+### **7. `customer_transactions` Table**
+
+This table is a financial ledger for all money received from customers (payments and sales).
+
+```sql
+CREATE TABLE IF NOT EXISTS `customer_transactions` (
+    `id` INT(11) NOT NULL AUTO_INCREMENT,
+    `customer_id` INT(11) UNSIGNED NOT NULL,
+    `transaction_type` VARCHAR(50) NOT NULL,
+    `amount` DECIMAL(10,2) NOT NULL,
+    `description` TEXT NULL,
+    `created_at` TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP(),
+    `user_id` INT(11) UNSIGNED NOT NULL,
+    PRIMARY KEY (`id`),
+    KEY `customer_id` (`customer_id`),
+    KEY `user_id` (`user_id`),
+    CONSTRAINT `fk_customer_transactions_customers` FOREIGN KEY (`customer_id`) REFERENCES `customers` (`id`) ON DELETE CASCADE ON UPDATE CASCADE,
+    CONSTRAINT `fk_customer_transactions_users` FOREIGN KEY (`user_id`) REFERENCES `users` (`id`) ON DELETE CASCADE ON UPDATE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+```
+
+-----
+
+### **8. `supplier_payments` Table**
+
+This table is specifically for tracking payments you have made to suppliers.
+
+```sql
+CREATE TABLE IF NOT EXISTS `supplier_payments` (
+    `id` INT(11) NOT NULL AUTO_INCREMENT,
+    `supplier_id` INT(11) NOT NULL,
+    `amount` DECIMAL(10,2) NOT NULL,
+    `payment_date` DATE NOT NULL,
+    `description` TEXT NULL,
+    `user_id` INT(11) NOT NULL,
+    `created_at` TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP(),
+    PRIMARY KEY (`id`),
+    KEY `supplier_id` (`supplier_id`),
+    CONSTRAINT `fk_supplier_payments_suppliers` FOREIGN KEY (`supplier_id`) REFERENCES `suppliers` (`id`) ON DELETE CASCADE ON UPDATE CASCADE,
+    CONSTRAINT `fk_supplier_payments_users` FOREIGN KEY (`user_id`) REFERENCES `users` (`id`) ON DELETE CASCADE ON UPDATE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+```
 
 ## Getting Started
 
